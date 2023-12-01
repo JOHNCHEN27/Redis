@@ -1,12 +1,20 @@
 package com.hmdp.utils;
 
+import cn.hutool.core.bean.BeanUtil;
+import com.baomidou.mybatisplus.core.toolkit.StringUtils;
 import com.hmdp.dto.UserDTO;
 import com.hmdp.entity.User;
+import org.springframework.data.redis.core.StringRedisTemplate;
 import org.springframework.web.servlet.HandlerInterceptor;
 
 import javax.servlet.http.HttpServletRequest;
 import javax.servlet.http.HttpServletResponse;
 import javax.servlet.http.HttpSession;
+
+import java.util.Map;
+import java.util.concurrent.TimeUnit;
+
+import static net.sf.jsqlparser.util.validation.metadata.NamedObject.user;
 
 /**
  * @author LNC
@@ -18,26 +26,19 @@ public class LoginInterceptor implements HandlerInterceptor {
 
     @Override
     public boolean preHandle(HttpServletRequest request, HttpServletResponse response, Object handler) throws Exception {
-        //1、获取session
-        HttpSession session = request.getSession();
-        //2、获取session中的用户
-        Object user = session.getAttribute("user");
-        //3、判断用户是否存在
-        if (user == null){
-            //不存在返回 401
+//        //1、获取session
+//        HttpSession session = request.getSession();
+//        //2、获取session中的用户
+//        Object user = session.getAttribute("user");
+
+       //此拦截器只需要判断是否拦截 判断ThreadLocal中是否有用户
+        if (UserHolder.getUser() == null){
+            //thread无用户 直接拦截
             response.setStatus(401);
             return false;
         }
-
-        //5、存在，保存用户信息到ThreadLocal
-        UserHolder.saveUser((UserDTO) user);
-        //6、放行
+        //有用户信息 放行
         return true;
     }
 
-    @Override
-    public void afterCompletion(HttpServletRequest request, HttpServletResponse response, Object handler, Exception ex) throws Exception {
-        //移除用户
-        UserHolder.removeUser();
-    }
 }
