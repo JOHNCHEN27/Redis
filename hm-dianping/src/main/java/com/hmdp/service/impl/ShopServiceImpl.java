@@ -17,8 +17,7 @@ import java.util.HashMap;
 import java.util.Map;
 import java.util.concurrent.TimeUnit;
 
-import static com.hmdp.utils.RedisConstants.CACHE_SHOP_KEY;
-import static com.hmdp.utils.RedisConstants.CACHE_SHOP_TTL;
+import static com.hmdp.utils.RedisConstants.*;
 
 /**
  * <p>
@@ -49,16 +48,25 @@ public class ShopServiceImpl extends ServiceImpl<ShopMapper, Shop> implements IS
         log.info("查询到redis缓存：{}",shopMap);
         //2、判断是否存在
         if (!shopMap.isEmpty()){
+            //判断是否是 error 0 是则说明发生了缓存穿透 直接返回错误数据
+            if (shopMap.get("error") != null && shopMap.get("error").equals("0")){
+                return Result.fail("该店铺信息不存在");
+            }
             //不为空返回
             Shop shop = BeanUtil.fillBeanWithMap(shopMap, new Shop(), false);
             log.info("转化后的shop:{}",shop);
             return Result.ok(shop);
         }
-        
+
         //3、为空查询数据库
         Shop shop = getById(id);
         //4、判断是否存在
         if (shop == null){
+            //不存在 写入一个空值 有效解决缓存穿透问题 设置有效期为两分钟
+            HashMap<String, String> hashMap = new HashMap<>();
+            hashMap.put("error","0");
+            stringRedisTemplate.opsForHash().putAll(key,hashMap);
+            stringRedisTemplate.expire(key,CACHE_NULL_TTL,TimeUnit.MINUTES);
             return Result.fail("店铺不存在");
         }
         //5、存在存入redis缓存
