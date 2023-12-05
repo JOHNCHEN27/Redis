@@ -3,6 +3,7 @@ package com.hmdp.utils;
 import cn.hutool.core.bean.BeanUtil;
 import com.baomidou.mybatisplus.core.toolkit.StringUtils;
 import com.hmdp.dto.UserDTO;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.data.redis.core.StringRedisTemplate;
 import org.springframework.web.servlet.HandlerInterceptor;
 
@@ -17,6 +18,7 @@ import java.util.concurrent.TimeUnit;
  * @description 刷新令牌时间
  * @date 2023/12/1 19:47
  */
+@Slf4j
 public class RefreshTokenInterceptor implements HandlerInterceptor {
     //此类无法使用autowired 以及resource注解 因为此类没有被spring接管 是自己定义的过滤器
     private StringRedisTemplate stringRedisTemplate;
@@ -34,6 +36,8 @@ public class RefreshTokenInterceptor implements HandlerInterceptor {
 
         //1、 获取请求头中的token
         String token = request.getHeader("authorization");
+        log.info("请求头中的token:{}",token);
+
         if (StringUtils.isBlank(token)){
             return true;
         }
