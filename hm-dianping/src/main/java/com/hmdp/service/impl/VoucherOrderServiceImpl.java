@@ -9,8 +9,10 @@ import com.hmdp.service.ISeckillVoucherService;
 import com.hmdp.service.IVoucherOrderService;
 import com.baomidou.mybatisplus.extension.service.impl.ServiceImpl;
 import com.hmdp.utils.RedisWorker;
+import com.hmdp.utils.SimpleRedisLock;
 import com.hmdp.utils.UserHolder;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.data.redis.core.StringRedisTemplate;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -31,10 +33,13 @@ public class VoucherOrderServiceImpl extends ServiceImpl<VoucherOrderMapper, Vou
     @Resource
     private ISeckillVoucherService seckillVoucherService;
 
-    //注入本类代理对象
-
+    //注入本类代理对象 -- 将需要代理的方法提升为接口 注入接口类对象 利用此对象去执行代理的方法
+    //利用代理对象执行事务方法时事务生效 ------ 非事务方法调用事务方法事务不生效 没有被spring管控
     @Resource
     IVoucherOrderService proxy;
+    
+    @Autowired
+    private StringRedisTemplate stringRedisTemplate;
 
 
     @Resource
@@ -69,12 +74,31 @@ public class VoucherOrderServiceImpl extends ServiceImpl<VoucherOrderMapper, Vou
 //        seckillVoucher.setUpdateTime(LocalDateTime.now());
 //        boolean success = seckillVoucherService.updateById(seckillVoucher);
 
+
         Long userId = UserHolder.getUser().getId();
-       //对用户进行加锁 用户id作为锁 此处的intern 是取字符串的值 保证值相同 而不是new的新对象作为锁
-        synchronized (userId.toString().intern()) {
-            //利用代理对象去执行事务方法  非事务方法调用事务方法 事务不生效
-            return proxy.createVoucherOrder(voucherId);
+//       //对用户进行加锁 用户id作为锁 此处的intern 是取字符串的值 保证值相同 而不是new的新对象作为锁
+//        synchronized (userId.toString().intern()) {
+//            //利用代理对象去执行事务方法  非事务方法调用事务方法 事务不生效
+//            return proxy.createVoucherOrder(voucherId);
+//        }
+
+        //利用redis分布式锁来解决不同JVM仍可实现一人多单问题
+        SimpleRedisLock lock = new SimpleRedisLock("order:" + userId, stringRedisTemplate);
+        //尝试获取锁
+        boolean isLock = lock.tryLock(1200);
+        if (!isLock){
+            //如果获取锁失败 根据业务返回错误信息或重试
+            return Result.fail("只允许购买一单");
         }
+        try {
+            //利用代理对象执行事务方法
+            return proxy.createVoucherOrder(voucherId);
+        } finally {
+            //如果执行过程抛出异常 手动释放锁
+            lock.unlock();
+        }
+
+
     }
 
     //创建优惠卷订单
