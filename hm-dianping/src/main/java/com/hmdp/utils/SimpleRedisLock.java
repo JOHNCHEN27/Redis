@@ -25,7 +25,7 @@ public class SimpleRedisLock implements Ilock{
 
     //锁名称前缀
     private static final String KEY_PREFIX = "lock:";
-    //ID标识前缀
+    //ID标识前缀 --用来区别不同的jvm进程防止锁误删
     private static final String ID_PREFIX = UUID.randomUUID().toString(true) + "-";
 
     /**
@@ -45,7 +45,7 @@ public class SimpleRedisLock implements Ilock{
 
 
     /**
-     * 释放锁
+     * 释放锁 --释放锁之前判断是不是属于自己的锁 用存取的值跟自己的标记的值做对比，防止误删
      */
     @Override
     public void unlock() {
