@@ -93,7 +93,7 @@ public class VoucherOrderServiceImpl extends ServiceImpl<VoucherOrderMapper, Vou
 
         //利用redisson提供的锁机制来获取锁 --不用自己编写锁方法
         RLock lock = redissonClient.getLock("lock:order:" + userId);
-        //尝试获取锁 不带参数表示失败不重试
+        //尝试获取锁 不带参数表示失败不重试 redisson锁提供了默认锁释放时间
         boolean isLock = lock.tryLock();
         if (!isLock){
             //如果获取锁失败 根据业务返回错误信息或重试
