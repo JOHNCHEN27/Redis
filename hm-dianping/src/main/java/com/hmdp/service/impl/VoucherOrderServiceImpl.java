@@ -11,6 +11,8 @@ import com.baomidou.mybatisplus.extension.service.impl.ServiceImpl;
 import com.hmdp.utils.RedisWorker;
 import com.hmdp.utils.SimpleRedisLock;
 import com.hmdp.utils.UserHolder;
+import org.redisson.api.RLock;
+import org.redisson.api.RedissonClient;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.data.redis.core.StringRedisTemplate;
 import org.springframework.stereotype.Service;
@@ -38,8 +40,12 @@ public class VoucherOrderServiceImpl extends ServiceImpl<VoucherOrderMapper, Vou
     @Resource
     IVoucherOrderService proxy;
     
-    @Autowired
+    @Resource
     private StringRedisTemplate stringRedisTemplate;
+
+    //注入配置的redissonClient
+    @Resource
+    private RedissonClient redissonClient;
 
 
     @Resource
@@ -83,9 +89,12 @@ public class VoucherOrderServiceImpl extends ServiceImpl<VoucherOrderMapper, Vou
 //        }
 
         //利用redis分布式锁来解决不同JVM仍可实现一人多单问题
-        SimpleRedisLock lock = new SimpleRedisLock("order:" + userId, stringRedisTemplate);
-        //尝试获取锁
-        boolean isLock = lock.tryLock(1200);
+       // SimpleRedisLock lock = new SimpleRedisLock("order:" + userId, stringRedisTemplate);
+
+        //利用redisson提供的锁机制来获取锁 --不用自己编写锁方法
+        RLock lock = redissonClient.getLock("lock:order:" + userId);
+        //尝试获取锁 不带参数表示失败不重试
+        boolean isLock = lock.tryLock();
         if (!isLock){
             //如果获取锁失败 根据业务返回错误信息或重试
             return Result.fail("只允许购买一单");
