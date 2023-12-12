@@ -103,4 +103,23 @@ public class UserController {
         return Result.ok(userDTO);
     }
 
+
+    /**
+     * 签到接口
+     * @return
+     */
+    @PostMapping("/sign")
+    public Result sign(){
+        return userService.sing();
+    }
+
+    /**
+     * 统计每月连续签到次数
+     * @return
+     */
+    @GetMapping("/sign/count")
+    public Result signCount(){
+        return userService.signCount();
+    }
+
 }
